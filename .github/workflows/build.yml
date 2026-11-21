@@ -34,7 +34,9 @@ jobs:
 
       - name: Sync OrangeFox fox_16.0 sources
         run: |
-          mkdir -p /mnt/fox && cd /mnt/fox
+          sudo mkdir -p /mnt/fox
+          sudo chown -R $USER:$USER /mnt/fox
+          cd /mnt/fox
           repo init --depth=1 -u https://gitlab.com/OrangeFox/Manifest.git -b fox_16.0
           mkdir -p .repo/local_manifests
           curl -o .repo/local_manifests/dizi.xml \
