@@ -49,10 +49,15 @@ jobs:
           export FOX_BUILD_DEVICE=dizi
           export ALLOW_MISSING_DEPENDENCIES=true
           export LC_ALL=C
+          sudo fallocate -l 16G /mnt/swapfile2
+          sudo chmod 600 /mnt/swapfile2
+          sudo mkswap /mnt/swapfile2
+          sudo swapon /mnt/swapfile2
+          free -h
           source build/envsetup.sh
           source device/xiaomi/dizi/vendorsetup.sh
           lunch twrp_dizi-bp2a-eng
-          mka adbd recoveryimage -j$(nproc --all) | tee build.log
+          mka adbd recoveryimage -j2 | tee build.log
 
       - name: Check output
         run: ls -lh /mnt/fox/out/target/product/dizi/ || true
