@@ -1,0 +1,73 @@
+name: OrangeFox - Build (dizi)
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: ubuntu-24.04
+
+    steps:
+      - name: Free disk space
+        uses: jlumbroso/free-disk-space@main
+        with:
+          tool-cache: true
+          android: true
+          dotnet: true
+          haskell: true
+          large-packages: true
+          docker-images: true
+          swap-storage: true
+
+      - name: Check disk space
+        run: df -h
+
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y git curl wget unzip zip python3 python-is-python3 repo openjdk-21-jdk build-essential libncurses-dev libssl-dev libxml2-dev libzstd-dev lz4 ccache
+          git config --global user.name "builder"
+          git config --global user.email "builder@actions.local"
+
+      - name: Sync OrangeFox fox_16.0 sources
+        run: |
+          mkdir -p /mnt/fox && cd /mnt/fox
+          repo init --depth=1 -u https://gitlab.com/OrangeFox/Manifest.git -b fox_16.0
+          mkdir -p .repo/local_manifests
+          curl -o .repo/local_manifests/dizi.xml \
+            https://raw.githubusercontent.com/${{ github.repository }}/fox_16.0/dizi.xml
+          repo sync -c --no-clone-bundle --no-tags -j$(nproc)
+
+      - name: Build recovery
+        run: |
+          cd /mnt/fox
+          export FOX_BUILD_DEVICE=dizi
+          export ALLOW_MISSING_DEPENDENCIES=true
+          export LC_ALL=C
+          source build/envsetup.sh
+          source device/xiaomi/dizi/vendorsetup.sh
+          lunch twrp_dizi-bp2a-eng
+          mka adbd recoveryimage -j$(nproc --all) | tee build.log
+
+      - name: Check output
+        run: ls -lh /mnt/fox/out/target/product/dizi/ || true
+
+      - name: Upload recovery
+        if: success()
+        uses: actions/upload-artifact@v4
+        with:
+          name: orangefox-dizi
+          path: |
+            /mnt/fox/out/target/product/dizi/recovery.img
+            /mnt/fox/out/target/product/dizi/*.zip
+          if-no-files-found: error
+
+      - name: Upload build log on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: build-log
+          path: /mnt/fox/build.log
