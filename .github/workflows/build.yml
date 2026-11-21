@@ -49,11 +49,21 @@ jobs:
           export FOX_BUILD_DEVICE=dizi
           export ALLOW_MISSING_DEPENDENCIES=true
           export LC_ALL=C
-          sudo fallocate -l 16G /mnt/swapfile2
+          echo "=== Disk before swap ==="
+          df -h /
+          AVAILABLE=$(df -B1M --output=avail /mnt | tail -n1)
+          SWAP_SIZE=$(( AVAILABLE - 20000 ))
+          if [ "$SWAP_SIZE" -gt 32000 ]; then SWAP_SIZE=32000; fi
+          if [ "$SWAP_SIZE" -lt 16000 ]; then SWAP_SIZE=16000; fi
+          echo "Creating swap of ${SWAP_SIZE} MB"
+          sudo fallocate -l ${SWAP_SIZE}M /mnt/swapfile2
           sudo chmod 600 /mnt/swapfile2
           sudo mkswap /mnt/swapfile2
           sudo swapon /mnt/swapfile2
+          sudo sysctl vm.swappiness=100
+          echo "=== Memory after swap ==="
           free -h
+          ( while true; do echo "[MEM] $(free -m | awk '/Mem:/{printf "RAM used/avail: %s/%s MB; ", $3, $7} /Swap:/{printf "Swap used/total: %s/%s MB", $3, $2}')"; sleep 30; done ) &
           source build/envsetup.sh
           source device/xiaomi/dizi/vendorsetup.sh
           lunch twrp_dizi-bp2a-eng
